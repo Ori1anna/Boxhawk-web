@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabaseClient'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import AccountSwitcher from '@/components/AccountSwitcher'
+import Logo from '@/components/Logo'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -53,12 +54,15 @@ export default function RootLayout({ children }) {
 
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className={`${geistSans.variable} ${geistMono.variable}`} style={{
+        margin: 0,
+        padding: 0,
+        minHeight: '100vh'
+      }}>
         {!isLandingPage && (
           <header style={{ 
             padding: '16px', 
             borderBottom: '1px solid #ddd', 
-            marginBottom: '20px',
             backgroundColor: '#ffffff',
             boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
           }}>
@@ -70,17 +74,7 @@ export default function RootLayout({ children }) {
               margin: '0 auto'
             }}>
               {/* Logo/Brand */}
-              <Link href="/" style={{
-                textDecoration: 'none',
-                color: '#333',
-                fontSize: '20px',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                🦅 Boxhawk
-              </Link>
+              <Logo size="xlarge" href="/" showText={false} />
 
               {/* Auth Status */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -115,7 +109,9 @@ export default function RootLayout({ children }) {
             </div>
           </header>
         )}
-        <main>{children}</main>
+        <main style={{
+          padding: '20px'
+        }}>{children}</main>
       </body>
     </html>
   )

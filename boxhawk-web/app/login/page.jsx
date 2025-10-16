@@ -32,8 +32,13 @@ export default function LoginPage() {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
-        // User is already logged in, redirect to home
-        router.push('/')
+        // User is already logged in, redirect based on role
+        const role = session.user.app_metadata?.role || 'photouser'
+        if (role === 'admin' || role === 'superadmin') {
+          router.push('/admin')
+        } else {
+          router.push('/')
+        }
         return
       }
       setLoading(false)
@@ -44,8 +49,13 @@ export default function LoginPage() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        // User logged in, redirect to home
-        router.push('/')
+        // User logged in, redirect based on role
+        const role = session.user.app_metadata?.role || 'photouser'
+        if (role === 'admin' || role === 'superadmin') {
+          router.push('/admin')
+        } else {
+          router.push('/')
+        }
       }
     })
 

@@ -50,6 +50,12 @@ export default function HomePage() {
     return null
   }
 
+  // Redirect admin users to admin dashboard
+  if (userRole === 'admin' || userRole === 'superadmin') {
+    window.location.href = '/admin'
+    return null
+  }
+
   return (
     <div style={{
       maxWidth: '1200px',
@@ -187,8 +193,8 @@ export default function HomePage() {
           </>
         )}
 
-        {/* Expert/Admin Cards */}
-        {(userRole === 'expert' || userRole === 'admin' || userRole === 'superadmin') && (
+        {/* Expert Cards */}
+        {userRole === 'expert' && (
           <>
             <Link href="/items" style={{ textDecoration: 'none' }}>
               <div style={{
@@ -272,38 +278,6 @@ export default function HomePage() {
           </>
         )}
 
-        {/* Admin/SuperAdmin Cards */}
-        {(userRole === 'admin' || userRole === 'superadmin') && (
-          <Link href="/admin/users" style={{ textDecoration: 'none' }}>
-            <div style={{
-              backgroundColor: '#ffffff',
-              borderRadius: '16px',
-              padding: '32px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              border: '2px solid transparent',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>👥</div>
-              <h3 style={{
-                fontSize: '20px',
-                fontWeight: '600',
-                marginBottom: '8px',
-                color: '#1a1a1a'
-              }}>
-                Manage Users
-              </h3>
-              <p style={{
-                fontSize: '14px',
-                color: '#666',
-                lineHeight: '1.5'
-              }}>
-                Add, edit, and manage user accounts and permissions
-              </p>
-            </div>
-          </Link>
-        )}
       </div>
     </div>
   )

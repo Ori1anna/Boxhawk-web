@@ -1,44 +1,34 @@
 'use client'
 import Link from 'next/link'
+import Logo from '@/components/Logo'
 
 export default function LandingPage() {
   return (
     <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      height: '100vh',
+      backgroundColor: '#ffffff',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
       padding: '20px',
-      color: 'white'
+      color: '#333',
+      overflow: 'hidden'
     }}>
       {/* Logo and Branding */}
       <div style={{
         textAlign: 'center',
-        marginBottom: '60px'
+        marginBottom: '40px'
       }}>
         {/* Logo */}
         <div style={{
-          fontSize: '80px',
-          marginBottom: '20px',
+          marginBottom: '30px',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          gap: '10px'
+          justifyContent: 'center'
         }}>
-          <span>🦅</span>
-          <span style={{ fontSize: '60px' }}>📦</span>
+          <Logo size="xxlarge" href={null} showText={false} />
         </div>
-        
-        <h1 style={{
-          fontSize: '48px',
-          fontWeight: '700',
-          marginBottom: '16px',
-          textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
-        }}>
-          Boxhawk
-        </h1>
         
         <p style={{
           fontSize: '24px',
@@ -50,10 +40,11 @@ export default function LandingPage() {
         </p>
         
         <p style={{
-          fontSize: '18px',
+          fontSize: '16px',
           opacity: 0.8,
-          maxWidth: '600px',
-          lineHeight: '1.6'
+          maxWidth: '500px',
+          lineHeight: '1.6',
+          margin: '0 auto 30px auto'
         }}>
           Your intelligent medical pantry management system. 
           Upload photos, get expert reviews, and organize your medical supplies with ease.
@@ -75,27 +66,26 @@ export default function LandingPage() {
             display: 'block',
             width: '100%',
             padding: '16px 32px',
-            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+            backgroundColor: '#6c5ce7',
             color: 'white',
             textDecoration: 'none',
             borderRadius: '12px',
             fontSize: '18px',
             fontWeight: '600',
             textAlign: 'center',
-            border: '2px solid rgba(255, 255, 255, 0.3)',
-            backdropFilter: 'blur(10px)',
+            border: 'none',
             transition: 'all 0.3s ease',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            boxShadow: '0 4px 16px rgba(108, 92, 231, 0.3)'
           }}
           onMouseEnter={(e) => {
-            e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.3)'
+            e.target.style.backgroundColor = '#5a4fcf'
             e.target.style.transform = 'translateY(-2px)'
-            e.target.style.boxShadow = '0 12px 40px rgba(0, 0, 0, 0.2)'
+            e.target.style.boxShadow = '0 6px 20px rgba(108, 92, 231, 0.4)'
           }}
           onMouseLeave={(e) => {
-            e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.2)'
+            e.target.style.backgroundColor = '#6c5ce7'
             e.target.style.transform = 'translateY(0)'
-            e.target.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.1)'
+            e.target.style.boxShadow = '0 4px 16px rgba(108, 92, 231, 0.3)'
           }}
         >
           Get Started
@@ -108,21 +98,23 @@ export default function LandingPage() {
             width: '100%',
             padding: '16px 32px',
             backgroundColor: 'transparent',
-            color: 'white',
+            color: '#6c5ce7',
             textDecoration: 'none',
             borderRadius: '12px',
             fontSize: '18px',
             fontWeight: '500',
             textAlign: 'center',
-            border: '2px solid rgba(255, 255, 255, 0.5)',
+            border: '2px solid #6c5ce7',
             transition: 'all 0.3s ease'
           }}
           onMouseEnter={(e) => {
-            e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
+            e.target.style.backgroundColor = '#6c5ce7'
+            e.target.style.color = 'white'
             e.target.style.transform = 'translateY(-2px)'
           }}
           onMouseLeave={(e) => {
             e.target.style.backgroundColor = 'transparent'
+            e.target.style.color = '#6c5ce7'
             e.target.style.transform = 'translateY(0)'
           }}
         >
@@ -132,29 +124,29 @@ export default function LandingPage() {
 
       {/* Features */}
       <div style={{
-        marginTop: '80px',
+        marginTop: '60px',
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '40px',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gap: '30px',
         width: '100%',
-        maxWidth: '800px'
+        maxWidth: '700px'
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '40px', marginBottom: '12px' }}>📸</div>
-          <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>Smart Scanning</h3>
-          <p style={{ fontSize: '14px', opacity: 0.8 }}>Upload photos of medical items for AI-powered recognition</p>
+          <div style={{ fontSize: '32px', marginBottom: '10px' }}>📸</div>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '6px' }}>Smart Scanning</h3>
+          <p style={{ fontSize: '12px', opacity: 0.8 }}>Upload photos of medical items for AI-powered recognition</p>
         </div>
         
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '40px', marginBottom: '12px' }}>👨‍⚕️</div>
-          <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>Expert Review</h3>
-          <p style={{ fontSize: '14px', opacity: 0.8 }}>Get professional verification and detailed information</p>
+          <div style={{ fontSize: '32px', marginBottom: '10px' }}>👨‍⚕️</div>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '6px' }}>Expert Review</h3>
+          <p style={{ fontSize: '12px', opacity: 0.8 }}>Get professional verification and detailed information</p>
         </div>
         
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '40px', marginBottom: '12px' }}>📦</div>
-          <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>Organized Storage</h3>
-          <p style={{ fontSize: '14px', opacity: 0.8 }}>Keep track of your medical inventory efficiently</p>
+          <div style={{ fontSize: '32px', marginBottom: '10px' }}>📦</div>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '6px' }}>Organized Storage</h3>
+          <p style={{ fontSize: '12px', opacity: 0.8 }}>Keep track of your medical inventory efficiently</p>
         </div>
       </div>
     </div>

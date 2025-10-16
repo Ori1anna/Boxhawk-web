@@ -3,13 +3,14 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
-import { PhotoUserGuard } from '@/components/RoleGuard'
 
 export default function UploadPage() {
   const [images, setImages] = useState([])
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [userRole, setUserRole] = useState(null)
   const [formData, setFormData] = useState({
     name: '',
     manufacturer: ''
@@ -19,6 +20,36 @@ export default function UploadPage() {
 
   const minImages = 4
   const maxImages = 10
+
+  // Check user permissions
+  useEffect(() => {
+    const checkUser = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session?.user) {
+          router.push('/login')
+          return
+        }
+        
+        const role = session.user.app_metadata?.role || 'photouser'
+        setUserRole(role)
+        
+        // Check if user has permission to access upload page
+        const allowedRoles = ['photouser', 'admin', 'superadmin']
+        if (!allowedRoles.includes(role)) {
+          router.push('/')
+          return
+        }
+        
+        setLoading(false)
+      } catch (error) {
+        console.error('Error checking user:', error)
+        router.push('/login')
+      }
+    }
+    
+    checkUser()
+  }, [router])
 
   // Check if device is mobile
   const isMobile = () => {
@@ -203,8 +234,22 @@ export default function UploadPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        fontSize: '18px',
+        color: '#666'
+      }}>
+        Loading...
+      </div>
+    )
+  }
+
   return (
-    <PhotoUserGuard>
       <div style={{ 
         minHeight: '100vh',
         backgroundColor: '#f8f9fa',
@@ -546,6 +591,5 @@ export default function UploadPage() {
         </div>
       </div>
       </div>
-    </PhotoUserGuard>
   )
 }
