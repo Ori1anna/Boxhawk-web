@@ -51,7 +51,7 @@ export default function ItemsPage() {
       // Calculate offset for pagination
       const offset = (currentPage - 1) * itemsPerPage
 
-      // Build query - show all items (not just pending ones)
+      // Build query - show all items with image count from new table
       let query = supabase
         .from('photo_submissions')
         .select('*', { count: 'exact' })
@@ -73,11 +73,40 @@ export default function ItemsPage() {
         return
       }
 
+      // For each item, get images from photo_submission_images table
+      const itemsWithImages = await Promise.all((data || []).map(async (item) => {
+        // Get images from photo_submission_images table
+        const { data: images } = await supabase
+          .from('photo_submission_images')
+          .select('storage_path')
+          .eq('submission_id', item.id)
+          .eq('status', 'active')
+          .order('created_at', { ascending: true })
+
+        // Convert storage paths to public URLs
+        const imageUrls = (images || []).map(img => 
+          supabase.storage.from('mp-images').getPublicUrl(img.storage_path).data.publicUrl
+        )
+
+        // Fallback to old image_1..image_10 fields if no images in new table
+        const fallbackImages = []
+        for (let i = 1; i <= 10; i++) {
+          if (item[`image_${i}`]) {
+            fallbackImages.push(item[`image_${i}`])
+          }
+        }
+
+        return {
+          ...item,
+          images: imageUrls.length > 0 ? imageUrls : fallbackImages
+        }
+      }))
+
       // Separate items into pending and completed
-      const pending = (data || []).filter(item => item.status !== 'complete')
-      const completed = (data || []).filter(item => item.status === 'complete')
+      const pending = itemsWithImages.filter(item => item.status !== 'complete')
+      const completed = itemsWithImages.filter(item => item.status === 'complete')
       
-      setItems(data || [])
+      setItems(itemsWithImages)
       setPendingItems(pending)
       setCompletedItems(completed)
       setTotalPages(Math.ceil((count || 0) / itemsPerPage))
@@ -273,9 +302,9 @@ export default function ItemsPage() {
                     alignItems: 'center',
                     justifyContent: 'center'
                   }}>
-                    {item.image_1 ? (
+                    {item.images && item.images.length > 0 ? (
                       <img
-                        src={item.image_1}
+                        src={item.images[0]}
                         alt={item.name}
                         style={{
                           width: '100%',
@@ -337,7 +366,7 @@ export default function ItemsPage() {
                     }}>
                       <span>{new Date(item.created_at).toLocaleDateString()}</span>
                       <span>
-                        {Array.from({ length: 10 }, (_, i) => item[`image_${i + 1}`]).filter(Boolean).length} photos
+                        {item.images ? item.images.length : 0} photos
                       </span>
                     </div>
                   </div>
@@ -408,9 +437,9 @@ export default function ItemsPage() {
                     alignItems: 'center',
                     justifyContent: 'center'
                   }}>
-                    {item.image_1 ? (
+                    {item.images && item.images.length > 0 ? (
                       <img
-                        src={item.image_1}
+                        src={item.images[0]}
                         alt={item.name}
                         style={{
                           width: '100%',
@@ -467,7 +496,7 @@ export default function ItemsPage() {
                     }}>
                       <span>{new Date(item.created_at).toLocaleDateString()}</span>
                       <span>
-                        {Array.from({ length: 10 }, (_, i) => item[`image_${i + 1}`]).filter(Boolean).length} photos
+                        {item.images ? item.images.length : 0} photos
                       </span>
                     </div>
                   </div>

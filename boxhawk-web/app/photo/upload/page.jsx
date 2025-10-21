@@ -156,17 +156,18 @@ export default function UploadPage() {
       // Skip bucket listing check since mp-images is public
       console.log('Skipping bucket list check for public bucket mp-images')
 
-      // Create submission folder name
-      const submissionId = Date.now()
-      const submissionFolder = `submission_${submissionId}_${Date.now()}`
-      const basePath = `photos/${submissionFolder}`
+      // Use new storage structure: photo/uploads/YYYY/MM/uuid.ext
+      const now = new Date()
+      const year = now.getFullYear()
+      const month = String(now.getMonth() + 1).padStart(2, '0')
+      const basePath = `photo/uploads/${year}/${month}`
       
       const uploadedPaths = []
       
       for (let i = 0; i < images.length; i++) {
         const image = images[i]
         const fileExt = image.file.name.split('.').pop()
-        const fileName = `image_${i + 1}.${fileExt}`
+        const fileName = `${crypto.randomUUID()}.${fileExt}`
         const filePath = `${basePath}/${fileName}`
 
         console.log(`Uploading ${fileName} to ${filePath}`)
@@ -184,9 +185,12 @@ export default function UploadPage() {
           throw new Error(`Storage upload failed: ${uploadError.message}`)
         }
 
-        // Store full URL instead of relative path
-        const fullUrl = `https://devrzshbbmcmqiqhdcsa.supabase.co/storage/v1/object/public/mp-images/${filePath}`
-        uploadedPaths.push(fullUrl)
+        // Store relative path for photo_submission_images table
+        uploadedPaths.push({
+          path: filePath,
+          size: image.file.size,
+          mime: image.file.type
+        })
         setUploadProgress(((i + 1) / images.length) * 100)
       }
 
@@ -197,31 +201,44 @@ export default function UploadPage() {
         throw new Error('User authentication failed')
       }
 
-      // Prepare image paths for database (fill image_1 to image_10)
-      const imagePaths = {}
-      uploadedPaths.forEach((path, index) => {
-        imagePaths[`image_${index + 1}`] = path
-      })
-
-      // Insert into photo_submissions table
-      const { error: dbError } = await supabase
+      // Create submission first (let database generate ID)
+      const { data: submission, error: submissionError } = await supabase
         .from('photo_submissions')
         .insert({
-          id: submissionId, // Use the same ID for consistency
           created_by: user.id,
           name: formData.name.trim(),
           manufacturer: formData.manufacturer.trim(),
-          ...imagePaths,
           status: 'uploaded',
           reviewed: false
         })
+        .select('id')
+        .single()
 
-      if (dbError) {
-        console.error('Database insert error:', dbError)
-        throw new Error(`Database insert failed: ${dbError.message}`)
+      if (submissionError) {
+        console.error('Submission creation error:', submissionError)
+        throw new Error(`Submission creation failed: ${submissionError.message}`)
       }
 
-      console.log('Successfully saved to photo_submissions table')
+      console.log('Successfully created submission:', submission.id)
+
+      // Register images in photo_submission_images table
+      const { error: imagesError } = await supabase
+        .from('photo_submission_images')
+        .insert(
+          uploadedPaths.map(img => ({
+            submission_id: submission.id,
+            storage_path: img.path,
+            size_bytes: img.size,
+            mime_type: img.mime
+          }))
+        )
+
+      if (imagesError) {
+        console.error('Images registration error:', imagesError)
+        throw new Error(`Images registration failed: ${imagesError.message}`)
+      }
+
+      console.log('Successfully registered images in photo_submission_images table')
 
       // Success - redirect to success page
       router.push('/success')
