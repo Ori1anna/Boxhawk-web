@@ -34,7 +34,7 @@ export default function ReviewPage() {
     setShowConfirm(true)
   }
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (continueToNext = false) => {
     if (!reviewData) return
 
     try {
@@ -57,8 +57,30 @@ export default function ReviewPage() {
         return
       }
 
-      alert('Item marked as complete!')
-      router.push('/items')
+      if (continueToNext) {
+        // Find next pending item
+        const { data: nextItem, error: nextError } = await supabase
+          .from('photo_submissions')
+          .select('id')
+          .neq('id', reviewData.itemId)
+          .neq('status', 'complete')
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .single()
+
+        if (nextError || !nextItem) {
+          // No more items to review
+          alert('All items have been reviewed! Returning to items list.')
+          router.push('/items')
+        } else {
+          // Navigate to next item
+          router.push(`/items/${nextItem.id}`)
+        }
+      } else {
+        // Return to items list
+        alert('Item marked as complete!')
+        router.push('/items')
+      }
       
     } catch (error) {
       console.error('Error:', error)
@@ -685,8 +707,25 @@ export default function ReviewPage() {
               marginBottom: '24px',
               lineHeight: '1.5'
             }}>
-              Are you sure you have completed the review? This will mark the item as complete and return to the items list.
+              Are you sure you have completed the review? Choose your next action:
             </p>
+            
+            <div style={{
+              fontSize: '14px',
+              color: '#666',
+              marginBottom: '20px',
+              padding: '12px',
+              backgroundColor: '#f8f9fa',
+              borderRadius: '6px',
+              border: '1px solid #e9ecef'
+            }}>
+              <div style={{ marginBottom: '8px' }}>
+                <strong>Complete & Return:</strong> Mark this item as complete and return to the items list
+              </div>
+              <div>
+                <strong>Complete & Continue:</strong> Mark this item as complete and automatically proceed to the next pending item
+              </div>
+            </div>
             
             <div style={{
               display: 'flex',
@@ -710,7 +749,7 @@ export default function ReviewPage() {
               </button>
               
               <button
-                onClick={handleConfirm}
+                onClick={() => handleConfirm(false)}
                 disabled={saving}
                 style={{
                   padding: '12px 24px',
@@ -723,7 +762,24 @@ export default function ReviewPage() {
                   fontWeight: '500'
                 }}
               >
-                {saving ? 'Processing...' : 'Confirm'}
+                {saving ? 'Processing...' : 'Complete & Return'}
+              </button>
+              
+              <button
+                onClick={() => handleConfirm(true)}
+                disabled={saving}
+                style={{
+                  padding: '12px 24px',
+                  backgroundColor: '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                {saving ? 'Processing...' : 'Complete & Continue'}
               </button>
             </div>
           </div>

@@ -88,17 +88,9 @@ export default function ItemsPage() {
           supabase.storage.from('mp-images').getPublicUrl(img.storage_path).data.publicUrl
         )
 
-        // Fallback to old image_1..image_10 fields if no images in new table
-        const fallbackImages = []
-        for (let i = 1; i <= 10; i++) {
-          if (item[`image_${i}`]) {
-            fallbackImages.push(item[`image_${i}`])
-          }
-        }
-
         return {
           ...item,
-          images: imageUrls.length > 0 ? imageUrls : fallbackImages
+          images: imageUrls
         }
       }))
 

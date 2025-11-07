@@ -21,6 +21,19 @@ export default function UploadPage() {
   const minImages = 4
   const maxImages = 10
 
+  // Generate UUID compatible with all browsers
+  const generateUUID = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID()
+    }
+    // Fallback for browsers that don't support crypto.randomUUID
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0
+      const v = c === 'x' ? r : (r & 0x3 | 0x8)
+      return v.toString(16)
+    })
+  }
+
   // Check user permissions
   useEffect(() => {
     const checkUser = async () => {
@@ -167,7 +180,7 @@ export default function UploadPage() {
       for (let i = 0; i < images.length; i++) {
         const image = images[i]
         const fileExt = image.file.name.split('.').pop()
-        const fileName = `${crypto.randomUUID()}.${fileExt}`
+        const fileName = `${generateUUID()}.${fileExt}`
         const filePath = `${basePath}/${fileName}`
 
         console.log(`Uploading ${fileName} to ${filePath}`)
@@ -328,7 +341,7 @@ export default function UploadPage() {
                 color: '#6c5ce7',
                 marginBottom: '8px'
               }}>
-                {isMobile() ? 'Take Photos' : 'Upload Photos'}
+                Upload Photos
               </h3>
               <p style={{
                 fontSize: '14px',
@@ -336,7 +349,7 @@ export default function UploadPage() {
                 margin: 0
               }}>
                 {isMobile() 
-                  ? 'Tap to open camera and take photos'
+                  ? 'Tap to open camera or select from gallery'
                   : 'Drag & drop images or click to select'
                 }
               </p>
@@ -421,7 +434,6 @@ export default function UploadPage() {
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          capture={isMobile() ? "environment" : undefined}
           multiple
           onChange={handleFileSelect}
           style={{ display: 'none' }}

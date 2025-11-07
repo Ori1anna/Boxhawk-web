@@ -100,9 +100,9 @@ export default function ItemDetailPage() {
 
       setFormData(initialFormData)
 
-      // Load OCR text for first image
-      if (data.image_1) {
-        loadOcrText(data.image_1)
+      // Load OCR text for first image from imageRecords
+      if (imagesFromDetail.length > 0) {
+        loadOcrText(imagesFromDetail[0])
       }
 
     } catch (error) {
@@ -121,9 +121,8 @@ export default function ItemDetailPage() {
 
   const handleImageSelect = (index) => {
     setSelectedImageIndex(index)
-    const imageField = `image_${index + 1}`
-    if (item && item[imageField]) {
-      loadOcrText(item[imageField])
+    if (imagesFromDetail[index]) {
+      loadOcrText(imagesFromDetail[index])
     }
   }
 
@@ -157,14 +156,8 @@ export default function ItemDetailPage() {
 
   const getImageList = () => {
     if (!item) return []
-    // 优先使用明细表（构建的 URL 列表）；若为空则回退到 image_1..image_10
-    if (imagesFromDetail.length > 0) return imagesFromDetail
-    const images = []
-    for (let i = 1; i <= 10; i++) {
-      const imageField = `image_${i}`
-      if (item[imageField]) images.push(item[imageField])
-    }
-    return images
+    // 只使用明细表的图片 URL 列表
+    return imagesFromDetail
   }
 
   const handleFilesUpload = async (files) => {
