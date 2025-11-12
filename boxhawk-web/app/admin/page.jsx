@@ -54,7 +54,7 @@ export default function AdminDashboard() {
       const { data: pending } = await supabase
         .from('photo_submissions')
         .select('id', { count: 'exact' })
-        .eq('status', 'uploaded')
+        .eq('status', 'in_review')
 
       // Get completed reviews
       const { data: completed } = await supabase

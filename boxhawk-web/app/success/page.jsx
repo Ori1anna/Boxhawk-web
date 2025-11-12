@@ -9,127 +9,87 @@ export default function SuccessPage() {
   return (
     <div style={{ 
       minHeight: '100vh',
-      backgroundColor: '#ffffff',
+      background: 'linear-gradient(180deg, #f5f6ff 0%, #f9fafb 40%, #ffffff 100%)',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '20px',
-      position: 'relative'
+      padding: '80px 24px'
     }}>
-      {/* Back Button */}
       <div style={{
-        position: 'absolute',
-        top: '20px',
-        left: '20px',
-        zIndex: 10
-      }}>
-        <Link href="/" style={{
-          display: 'flex',
-          alignItems: 'center',
-          textDecoration: 'none',
-          color: '#333',
-          fontSize: '16px',
-          fontWeight: '500'
-        }}>
-          <span style={{ marginRight: '8px', fontSize: '20px' }}>←</span>
-          Back
-        </Link>
-      </div>
-
-      {/* Main Content */}
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
         textAlign: 'center',
-        maxWidth: '400px',
-        margin: '0 auto'
+        maxWidth: '480px',
+        width: '100%'
       }}>
-        {/* Eagle Icon */}
         <div style={{
-          width: '120px',
-          height: '120px',
-          marginBottom: '32px',
+          width: '112px',
+          height: '112px',
+          margin: '0 auto 32px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '80px'
+          fontSize: '72px'
         }}>
           🦅
         </div>
 
-        {/* Success Title */}
         <h1 style={{
-          fontSize: '32px',
-          fontWeight: 'bold',
-          color: '#dc3545',
-          margin: '0 0 16px 0',
+          fontSize: '56px',
+          fontWeight: '800',
+          marginBottom: '16px',
+          letterSpacing: '-0.04em',
           textTransform: 'uppercase',
-          letterSpacing: '1px'
+          background: 'linear-gradient(90deg, #6c5ce7 0%, #ef4444 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent'
         }}>
           Success!
         </h1>
 
-        {/* Success Messages */}
-        <div style={{
-          marginBottom: '40px',
-          lineHeight: '1.6'
+        <p style={{
+          fontSize: '18px',
+          color: '#475467',
+          marginBottom: '36px',
+          lineHeight: 1.6
         }}>
-          <p style={{
-            fontSize: '16px',
-            color: '#666',
-            margin: '0 0 16px 0',
-            fontWeight: '500'
-          }}>
-            The item now will be ready for local and global redistribution!
-          </p>
-          
-          <p style={{
-            fontSize: '14px',
-            color: '#888',
-            margin: 0,
-            lineHeight: '1.5'
-          }}>
-            Thanks for being a Pantry Mate and helping us on our mission to divert medical supplies away from landfill.
-          </p>
-        </div>
+          Thanks for being a Pantry Mate and helping us capture every detail. Your photos keep our records accurate and get supplies to the people who need them.
+        </p>
 
-        {/* Action Buttons */}
         <div style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: '12px',
+          gap: '14px',
           width: '100%',
-          maxWidth: '280px'
+          maxWidth: '300px',
+          margin: '0 auto'
         }}>
           <Link href="/" style={{
             display: 'block',
-            padding: '14px 24px',
-            backgroundColor: '#6c5ce7',
+            padding: '16px',
+            backgroundColor: '#101828',
             color: 'white',
             textDecoration: 'none',
-            borderRadius: '8px',
+            borderRadius: '999px',
             fontSize: '16px',
             fontWeight: '600',
             textAlign: 'center',
-            transition: 'all 0.2s ease'
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease'
           }}>
             Back to Home
           </Link>
           
           <Link href="/photo/upload" style={{
             display: 'block',
-            padding: '14px 24px',
-            backgroundColor: 'transparent',
-            color: '#6c5ce7',
+            padding: '16px',
+            backgroundColor: 'white',
+            color: '#101828',
             textDecoration: 'none',
-            borderRadius: '8px',
+            borderRadius: '999px',
             fontSize: '16px',
             fontWeight: '600',
             textAlign: 'center',
-            border: '2px solid #6c5ce7',
-            transition: 'all 0.2s ease'
+            border: '1px solid #d0d5dd',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease'
           }}>
             Continue Scanning
           </Link>

@@ -2,7 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabaseClient'
+import {
+  GENERAL_SYMBOLS,
+  RECYCLING_SYMBOLS,
+  parseSymbolField
+} from '@/constants/symbolOptions'
+
+
 
 export default function ItemDetailPage() {
   const [item, setItem] = useState(null)
@@ -16,6 +24,8 @@ export default function ItemDetailPage() {
   const [uploading, setUploading] = useState(false)
   const [formData, setFormData] = useState({})
   const [saving, setSaving] = useState(false)
+  const [showRejectConfirm, setShowRejectConfirm] = useState(false)
+  const [rejecting, setRejecting] = useState(false)
   const [showImageModal, setShowImageModal] = useState(false)
   const [modalImageUrl, setModalImageUrl] = useState('')
   const router = useRouter()
@@ -80,8 +90,8 @@ export default function ItemDetailPage() {
         lot: data.lot || '',
         ref: data.ref || '',
         quantity: data.quantity || '',
-        labels: data.labels || '',
-        recycling_symbol: data.recycling_symbol || '',
+        labels: parseSymbolField(data.labels, GENERAL_SYMBOLS),
+        recycling_symbol: parseSymbolField(data.recycling_symbol, RECYCLING_SYMBOLS),
         manufacture_address: data.manufacture_address || '',
         manufacture_site: data.manufacture_site || '',
         sponsor: data.sponsor || '',
@@ -133,6 +143,21 @@ export default function ItemDetailPage() {
       [name]: value
     }))
   }
+
+  const toggleSymbolSelection = (field, value) => {
+    setFormData((prev) => {
+      const current = Array.isArray(prev[field]) ? prev[field] : []
+      const exists = current.includes(value)
+      const updated = exists ? current.filter((item) => item !== value) : [...current, value]
+      return {
+        ...prev,
+        [field]: updated
+      }
+    })
+  }
+
+  const toggleGeneralSymbol = (value) => toggleSymbolSelection('labels', value)
+  const toggleRecyclingSymbol = (value) => toggleSymbolSelection('recycling_symbol', value)
 
   const handleReview = () => {
     // Navigate to review page with form data
@@ -229,6 +254,7 @@ export default function ItemDetailPage() {
   const [existingSubmissions, setExistingSubmissions] = useState([])
   const [selectedTargetId, setSelectedTargetId] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [zoomLevel, setZoomLevel] = useState(100) // Image zoom level in percentage
 
   const handleMoveToNew = () => {
     if (selectedImageIds.size === 0) return alert('Please select images to move.')
@@ -324,245 +350,370 @@ export default function ItemDetailPage() {
   const images = getImageList()
   const selectedImage = images[selectedImageIndex]
 
+  // Calculate grid columns based on zoom level
+  const getGridColumns = () => {
+    if (zoomLevel <= 50) return 'repeat(6, 1fr)'
+    if (zoomLevel <= 75) return 'repeat(5, 1fr)'
+    if (zoomLevel <= 100) return 'repeat(4, 1fr)'
+    if (zoomLevel <= 125) return 'repeat(3, 1fr)'
+    return 'repeat(2, 1fr)'
+  }
+
+  const handleZoomIn = () => {
+    setZoomLevel(prev => Math.min(prev + 25, 200))
+  }
+
+  const handleZoomOut = () => {
+    setZoomLevel(prev => Math.max(prev - 25, 25))
+  }
+
   return (
     <div style={{
       maxWidth: '1400px',
       margin: '0 auto',
-      padding: '20px',
-      minHeight: '80vh',
-      backgroundColor: '#ffffff'
+      padding: '0 24px 40px 24px'
     }}>
-      {/* Header */}
       <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '32px',
-        flexWrap: 'wrap',
-        gap: '16px'
+        marginBottom: '16px'
       }}>
-        <div>
-          <h1 style={{
-            fontSize: '28px',
-            fontWeight: '600',
-            color: '#1a1a1a',
-            marginBottom: '8px'
-          }}>
-            Item Review
-          </h1>
-          <p style={{
-            fontSize: '16px',
-            color: '#666',
-            margin: 0
-          }}>
-            Review and edit item details
-          </p>
-        </div>
-
-        <button
-          onClick={() => router.push('/items')}
+        <Link
+          href="/items"
           style={{
-            padding: '12px 24px',
-            backgroundColor: '#6c5ce7',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
             fontSize: '14px',
-            fontWeight: '500',
-            display: 'flex',
+            color: '#6c5ce7',
+            textDecoration: 'none',
+            display: 'inline-flex',
             alignItems: 'center',
-            gap: '8px'
+            gap: '8px',
+            padding: '6px 12px',
+            backgroundColor: '#eef2ff',
+            borderRadius: '999px',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#e0e7ff'
+            e.currentTarget.style.transform = 'translateY(-1px)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#eef2ff'
+            e.currentTarget.style.transform = 'translateY(0)'
           }}
         >
-          ← Back to Items
-        </button>
+          <span style={{
+            display: 'inline-flex',
+            width: '20px',
+            height: '20px',
+            borderRadius: '50%',
+            backgroundColor: '#d6dcff',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '12px',
+            color: '#4f46e5',
+            fontWeight: '600'
+          }}>
+            ←
+          </span>
+          <span style={{ fontWeight: '600', color: '#4f46e5' }}>Back to Review Queue</span>
+        </Link>
       </div>
 
-      {/* Main Content */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '32px',
-        minHeight: '600px'
+        gridTemplateColumns: '3fr 2fr',
+        gap: '24px',
+        alignItems: 'flex-start'
       }}>
-        {/* Left Side - Images */}
-        <div>
-          <h3 style={{
-            fontSize: '18px',
-            fontWeight: '600',
-            marginBottom: '16px',
-            color: '#333'
+          {/* Left Side - Images Grid */}
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '12px',
+            padding: '24px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            display: 'flex',
+            flexDirection: 'column',
+            maxHeight: 'calc(100vh - 200px)',
+            overflow: 'hidden'
           }}>
-            Images ({images.length})
-          </h3>
-          {/* Toolbar */}
-          <div style={{ marginBottom: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <label style={{
-              display: 'inline-block',
-              padding: '8px 12px',
-              backgroundColor: '#6c5ce7',
-              color: '#fff',
-              borderRadius: '6px',
-              cursor: uploading ? 'not-allowed' : 'pointer',
-              opacity: uploading ? 0.7 : 1
-            }}>
-              {uploading ? 'Uploading...' : 'Upload Images'}
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) => handleFilesUpload(Array.from(e.target.files || []))}
-                style={{ display: 'none' }}
-                disabled={uploading}
-              />
-            </label>
-            <button onClick={selectAll} style={{ padding: '8px 12px', border: '1px solid #ddd', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}>Select All</button>
-            <button onClick={clearSelection} style={{ padding: '8px 12px', border: '1px solid #ddd', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}>Clear</button>
-            <button onClick={handleDeleteSelected} style={{ padding: '8px 12px', border: '1px solid #e74c3c', color: '#e74c3c', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}>Delete Selected</button>
-            <button onClick={handleMoveToNew} style={{ padding: '8px 12px', border: '1px solid #6c5ce7', color: '#6c5ce7', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}>Move to New Submission</button>
-            <button onClick={handleMoveToExisting} style={{ padding: '8px 12px', border: '1px solid #6c5ce7', color: '#6c5ce7', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}>Move to Existing</button>
-          </div>
-          
-          {/* Main Image Display */}
-          <div 
-            onClick={() => selectedImage && handleImageClick(selectedImage)}
-            style={{
-              width: '100%',
-              height: '400px',
-              backgroundColor: '#f8f9fa',
-              borderRadius: '8px',
-              marginBottom: '16px',
-              overflow: 'hidden',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: selectedImage ? 'pointer' : 'default',
-              transition: 'transform 0.2s ease',
-              border: selectedImage ? '2px solid transparent' : 'none'
-            }}
-            onMouseEnter={(e) => {
-              if (selectedImage) {
-                e.target.style.transform = 'scale(1.02)'
-                e.target.style.border = '2px solid #6c5ce7'
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (selectedImage) {
-                e.target.style.transform = 'scale(1)'
-                e.target.style.border = '2px solid transparent'
-              }
-            }}
-          >
-            {selectedImage ? (
-              <img
-                src={selectedImage}
-                alt={`Image ${selectedImageIndex + 1}`}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain',
-                  pointerEvents: 'none'
-                }}
-              />
-            ) : (
-              <div style={{
-                fontSize: '48px',
-                color: '#ccc'
-              }}>
-                📷
-              </div>
-            )}
-          </div>
-
-          {/* Thumbnail Grid */}
-          {imageRecords.length > 0 && (
+            {/* Zoom Controls */}
             <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
-              gap: '8px'
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px'
             }}>
-              {imageRecords.map((rec, index) => (
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                alignItems: 'center'
+              }}>
                 <button
-                  key={rec.id}
-                  onClick={() => handleImageSelect(index)}
+                  onClick={handleZoomOut}
                   style={{
-                    width: '80px',
-                    height: '80px',
-                    border: selectedImageIndex === index ? '2px solid #6c5ce7' : '2px solid #e9ecef',
+                    width: '32px',
+                    height: '32px',
+                    border: '1px solid #ddd',
                     borderRadius: '6px',
-                    overflow: 'hidden',
+                    backgroundColor: '#fff',
                     cursor: 'pointer',
-                    backgroundColor: '#ffffff',
-                    padding: 0,
-                    position: 'relative'
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '18px',
+                    color: '#333'
                   }}
                 >
-                  <img
-                    src={rec.url}
-                    alt={`Thumbnail ${index + 1}`}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover'
-                    }}
-                  />
-                  <input
-                    type="checkbox"
-                    checked={selectedImageIds.has(rec.id)}
-                    onChange={(e) => { e.stopPropagation(); toggleSelect(rec.id) }}
-                    style={{ position: 'absolute', top: 6, left: 6 }}
-                  />
+                  −
                 </button>
-              ))}
+                <span style={{
+                  fontSize: '14px',
+                  color: '#666',
+                  minWidth: '50px',
+                  textAlign: 'center'
+                }}>
+                  {zoomLevel}%
+                </span>
+                <button
+                  onClick={handleZoomIn}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    backgroundColor: '#fff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '18px',
+                    color: '#333'
+                  }}
+                >
+                  +
+                </button>
+              </div>
+              
+              {/* Batch Operation Buttons */}
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                flexWrap: 'wrap'
+              }}>
+                <label style={{
+                  display: 'inline-block',
+                  padding: '6px 12px',
+                  backgroundColor: '#1a1a1a',
+                  color: '#fff',
+                  borderRadius: '6px',
+                  cursor: uploading ? 'not-allowed' : 'pointer',
+                  opacity: uploading ? 0.7 : 1,
+                  fontSize: '12px',
+                  fontWeight: '500'
+                }}>
+                  {uploading ? 'Uploading...' : 'Upload'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => handleFilesUpload(Array.from(e.target.files || []))}
+                    style={{ display: 'none' }}
+                    disabled={uploading}
+                  />
+                </label>
+                <button 
+                  onClick={selectAll} 
+                  style={{ 
+                    padding: '6px 12px', 
+                    border: '1px solid #ddd', 
+                    borderRadius: '6px', 
+                    background: '#fff', 
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  Select All
+                </button>
+                <button 
+                  onClick={clearSelection} 
+                  style={{ 
+                    padding: '6px 12px', 
+                    border: '1px solid #ddd', 
+                    borderRadius: '6px', 
+                    background: '#fff', 
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  Clear
+                </button>
+                <button 
+                  onClick={handleDeleteSelected} 
+                  style={{ 
+                    padding: '6px 12px', 
+                    border: '1px solid #e74c3c', 
+                    color: '#e74c3c', 
+                    borderRadius: '6px', 
+                    background: '#fff', 
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  Delete
+                </button>
+                <button 
+                  onClick={handleMoveToNew} 
+                  style={{ 
+                    padding: '6px 12px', 
+                    border: '1px solid #1a1a1a', 
+                    color: '#1a1a1a', 
+                    borderRadius: '6px', 
+                    background: '#fff', 
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  Move to New
+                </button>
+                <button 
+                  onClick={handleMoveToExisting} 
+                  style={{ 
+                    padding: '6px 12px', 
+                    border: '1px solid #1a1a1a', 
+                    color: '#1a1a1a', 
+                    borderRadius: '6px', 
+                    background: '#fff', 
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  Move to Existing
+                </button>
+              </div>
             </div>
-          )}
-        </div>
-
-        {/* Right Side - OCR and Form */}
-        <div>
-          {/* OCR Text */}
-          <div style={{
-            marginBottom: '24px'
-          }}>
-            <h3 style={{
-              fontSize: '18px',
-              fontWeight: '600',
-              marginBottom: '12px',
-              color: '#333'
-            }}>
-              OCR Raw Text
-            </h3>
+            
+            {/* Image Grid with Scroll */}
             <div style={{
-              backgroundColor: '#f8f9fa',
-              border: '1px solid #e9ecef',
-              borderRadius: '6px',
-              padding: '16px',
-              minHeight: '120px',
-              fontSize: '14px',
-              lineHeight: '1.5',
-              color: '#333',
-              whiteSpace: 'pre-wrap',
-              fontFamily: 'monospace'
+              flex: 1,
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#1a1a1a #f0f0f0'
             }}>
-              {ocrText || 'No OCR text available'}
+              {imageRecords.length > 0 ? (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: getGridColumns(),
+                  gap: '12px'
+                }}>
+                  {imageRecords.map((rec, index) => (
+                    <div
+                      key={rec.id}
+                      onClick={() => handleImageClick(rec.url)}
+                      style={{
+                        aspectRatio: '1',
+                        border: selectedImageIndex === index ? '2px solid #1a1a1a' : '1px solid #e9ecef',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        backgroundColor: '#f8f9fa',
+                        position: 'relative',
+                        transition: 'border-color 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = '#1a1a1a'
+                      }}
+                      onMouseLeave={(e) => {
+                        if (selectedImageIndex !== index) {
+                          e.currentTarget.style.borderColor = '#e9ecef'
+                        }
+                      }}
+                    >
+                      <img
+                        src={rec.url}
+                        alt={`Image ${index + 1}`}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          transform: `scale(${zoomLevel / 100})`,
+                          transformOrigin: 'center'
+                        }}
+                      />
+                      <input
+                        type="checkbox"
+                        checked={selectedImageIds.has(rec.id)}
+                        onChange={(e) => { e.stopPropagation(); toggleSelect(rec.id) }}
+                        style={{ 
+                          position: 'absolute', 
+                          top: 8, 
+                          left: 8,
+                          width: '18px',
+                          height: '18px',
+                          cursor: 'pointer',
+                          zIndex: 10
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '200px',
+                  color: '#999',
+                  fontSize: '14px'
+                }}>
+                  No images available
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Form */}
-          <div>
+        {/* Right Side - Form */}
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '12px',
+          padding: '24px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: 'calc(100vh - 200px)',
+          overflow: 'hidden'
+        }}>
+          {/* Form Header */}
+          <div style={{
+            marginBottom: '20px',
+            borderBottom: '1px solid #e9ecef',
+            paddingBottom: '16px'
+          }}>
             <h3 style={{
-              fontSize: '18px',
+              fontSize: '20px',
               fontWeight: '600',
-              marginBottom: '16px',
-              color: '#333'
+              color: '#1a1a1a',
+              margin: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
             }}>
-              Item Details
+              Product Details
+              <span style={{ fontSize: '12px', fontWeight: '500', color: '#dc2626' }}>(Required fields are marked with *)</span>
             </h3>
-            
+          </div>
+
+          {/* Scrollable Form Content */}
+          <div style={{
+            flex: 1,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#1a1a1a #f0f0f0',
+            paddingRight: '8px'
+          }}>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
+              gridTemplateColumns: '1fr',
               gap: '16px',
               marginBottom: '16px'
             }}>
@@ -574,7 +725,7 @@ export default function ItemDetailPage() {
                   marginBottom: '6px',
                   color: '#333'
                 }}>
-                  Name *
+                  Product Name <span style={{ color: '#dc2626' }}>*</span>
                 </label>
                 <input
                   type="text"
@@ -589,6 +740,7 @@ export default function ItemDetailPage() {
                     fontSize: '14px',
                     outline: 'none'
                   }}
+                required
                 />
               </div>
 
@@ -600,7 +752,7 @@ export default function ItemDetailPage() {
                   marginBottom: '6px',
                   color: '#333'
                 }}>
-                  Manufacturer *
+                  Manufacturer <span style={{ color: '#dc2626' }}>*</span>
                 </label>
                 <input
                   type="text"
@@ -615,6 +767,7 @@ export default function ItemDetailPage() {
                     fontSize: '14px',
                     outline: 'none'
                   }}
+                required
                 />
               </div>
 
@@ -626,7 +779,7 @@ export default function ItemDetailPage() {
                   marginBottom: '6px',
                   color: '#333'
                 }}>
-                  Barcode
+                  Barcode Number / GTIN
                 </label>
                 <input
                   type="text"
@@ -678,7 +831,7 @@ export default function ItemDetailPage() {
                   marginBottom: '6px',
                   color: '#333'
                 }}>
-                  Date of Manufacture
+                  Manufacture Date
                 </label>
                 <input
                   type="text"
@@ -804,16 +957,245 @@ export default function ItemDetailPage() {
                 <label style={{
                   display: 'block',
                   fontSize: '14px',
+                  fontWeight: '600',
+                  marginBottom: '6px',
+                  color: '#111827'
+                }}>
+                  General Symbols
+                </label>
+                <p style={{
+                  fontSize: '12px',
+                  color: '#6b7280',
+                  marginBottom: '12px'
+                }}>
+                  Select every symbol you can identify on the packaging.
+                </p>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                  gap: '12px'
+                }}>
+                  {GENERAL_SYMBOLS.map((symbol) => {
+                    const selected = (formData.labels || []).includes(symbol.id)
+                    return (
+                      <button
+                        key={symbol.id}
+                        type="button"
+                        onClick={() => toggleGeneralSymbol(symbol.id)}
+                        style={{
+                          border: selected ? '2px solid #1d4ed8' : '1px solid #e5e7eb',
+                          backgroundColor: selected ? '#eef2ff' : '#ffffff',
+                          borderRadius: '12px',
+                          padding: '20px 16px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '12px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          boxShadow: selected ? '0 8px 20px rgba(29, 78, 216, 0.15)' : 'none',
+                          minHeight: '190px'
+                        }}
+                      >
+                        {symbol.image ? (
+                          <img
+                            src={symbol.image}
+                            alt={symbol.label}
+                            style={{
+                              width: '88px',
+                              height: '88px',
+                              objectFit: 'contain'
+                            }}
+                          />
+                        ) : (
+                          <div style={{
+                            width: '60px',
+                            height: '60px',
+                            borderRadius: '14px',
+                            backgroundColor: '#f3f4f6',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '26px',
+                            fontWeight: 600,
+                            color: '#1f2937'
+                          }}>
+                            {symbol.label.slice(0, 2)}
+                          </div>
+                        )}
+                        <span
+                          style={{
+                            fontSize: '12px',
+                            fontWeight: 500,
+                            color: '#1f2937',
+                            textAlign: 'center',
+                            lineHeight: 1.4
+                          }}
+                        >
+                          {symbol.label}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  marginTop: '12px',
+                  marginBottom: '6px',
+                  color: '#111827'
+                }}>
+                  Recycling Symbols
+                </label>
+                <p style={{
+                  fontSize: '12px',
+                  color: '#6b7280',
+                  marginBottom: '12px'
+                }}>
+                  Choose the recycling codes printed on the packaging.
+                </p>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                  gap: '12px'
+                }}>
+                  {RECYCLING_SYMBOLS.map((symbol) => {
+                    const selected = (formData.recycling_symbol || []).includes(symbol.id)
+                    return (
+                      <button
+                        key={symbol.id}
+                        type="button"
+                        onClick={() => toggleRecyclingSymbol(symbol.id)}
+                        style={{
+                          border: selected ? '2px solid #047857' : '1px solid #e5e7eb',
+                          backgroundColor: selected ? '#ecfdf5' : '#ffffff',
+                          borderRadius: '12px',
+                          padding: '20px 16px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '12px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          boxShadow: selected ? '0 8px 20px rgba(4, 120, 87, 0.12)' : 'none',
+                          minHeight: '190px'
+                        }}
+                      >
+                        {symbol.image ? (
+                          <img
+                            src={symbol.image}
+                            alt={symbol.label}
+                            style={{
+                              width: '88px',
+                              height: '88px',
+                              objectFit: 'contain'
+                            }}
+                          />
+                        ) : (
+                          <div style={{
+                            width: '60px',
+                            height: '60px',
+                            borderRadius: '14px',
+                            backgroundColor: '#f3f4f6',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '26px',
+                            fontWeight: 600,
+                            color: '#1f2937'
+                          }}>
+                            {symbol.label.slice(0, 2)}
+                          </div>
+                        )}
+                        <span
+                          style={{
+                            fontSize: '12px',
+                            fontWeight: 500,
+                            color: '#1f2937',
+                            textAlign: 'center',
+                            lineHeight: 1.4
+                          }}
+                        >
+                          {symbol.label}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
                   fontWeight: '500',
                   marginBottom: '6px',
                   color: '#333'
                 }}>
-                  Labels
+                  Manufacture Address
                 </label>
                 <input
                   type="text"
-                  name="labels"
-                  value={formData.labels}
+                  name="manufacture_address"
+                  value={formData.manufacture_address}
+                  onChange={handleInputChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  marginBottom: '6px',
+                  color: '#333'
+                }}>
+                  Manufacture Site
+                </label>
+                <input
+                  type="text"
+                  name="manufacture_site"
+                  value={formData.manufacture_site}
+                  onChange={handleInputChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  marginBottom: '6px',
+                  color: '#333'
+                }}>
+                  Sponsor
+                </label>
+                <input
+                  type="text"
+                  name="sponsor"
+                  value={formData.sponsor}
                   onChange={handleInputChange}
                   style={{
                     width: '100%',
@@ -854,34 +1236,75 @@ export default function ItemDetailPage() {
                 }}
               />
             </div>
-          </div>
-        </div>
       </div>
 
-      {/* Review Button - Fixed Position */}
+      {/* Review Actions */}
       <div style={{
-        position: 'fixed',
-        bottom: '30px',
-        right: '30px',
-        zIndex: 1000
+        marginTop: '20px',
+        paddingTop: '20px',
+        borderTop: '1px solid #e9ecef',
+        display: 'flex',
+        gap: '12px'
       }}>
         <button
           onClick={handleReview}
           style={{
-            padding: '16px 32px',
-            backgroundColor: '#6c5ce7',
-            color: 'white',
+            flex: 1,
+            padding: '12px 24px',
+            backgroundColor: '#1a1a1a',
+            color: '#ffffff',
             border: 'none',
-            borderRadius: '50px',
+            borderRadius: '8px',
             cursor: 'pointer',
             fontSize: '16px',
             fontWeight: '600',
-            boxShadow: '0 4px 12px rgba(108, 92, 231, 0.3)',
-            transition: 'all 0.2s ease'
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            transition: 'background-color 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.backgroundColor = '#333333'
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.backgroundColor = '#1a1a1a'
           }}
         >
-          Review
+          <span>✓</span>
+          Mark as complete
         </button>
+
+        <button
+          onClick={() => setShowRejectConfirm(true)}
+          style={{
+            flex: 1,
+            padding: '12px 24px',
+            backgroundColor: '#ef4444',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '16px',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            transition: 'background-color 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.backgroundColor = '#dc2626'
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.backgroundColor = '#ef4444'
+          }}
+        >
+          <span>✕</span>
+          Reject
+        </button>
+      </div>
+        </div>
       </div>
 
       {/* Image Modal */}
@@ -943,6 +1366,129 @@ export default function ItemDetailPage() {
             }}
             onClick={handleCloseModal}
           />
+        </div>
+      )}
+
+      {/* Reject Confirmation Modal */}
+      {showRejectConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '12px',
+            padding: '32px',
+            maxWidth: '360px',
+            width: '90%',
+            textAlign: 'center',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
+          }}>
+            <h3 style={{
+              fontSize: '20px',
+              fontWeight: '600',
+              marginBottom: '16px',
+              color: '#1a1a1a'
+            }}>
+              Reject Item
+            </h3>
+            <p style={{
+              fontSize: '16px',
+              color: '#666',
+              marginBottom: '24px',
+              lineHeight: '1.5'
+            }}>
+              Are you sure you want to reject this item? It will be removed from the queue.
+            </p>
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'center'
+            }}>
+              <button
+                onClick={() => setShowRejectConfirm(false)}
+                style={{
+                  padding: '12px 24px',
+                  backgroundColor: '#f8f9fa',
+                  color: '#666',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  cursor: rejecting ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+                disabled={rejecting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                try {
+                  setRejecting(true)
+                  const submissionId = Number(itemId)
+                  const idFilter = Number.isNaN(submissionId) ? itemId : submissionId
+
+                  const res = await fetch('/api/photo-submissions/reject', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ submissionId: idFilter })
+                  })
+
+                  if (!res.ok) {
+                    const json = await res.json().catch(() => ({}))
+                    console.error('Reject failed:', json?.error || 'Unknown error')
+                    alert('Failed to reject item')
+                    return
+                  }
+
+                  const { data: nextItems, error: nextError } = await supabase
+                    .from('photo_submissions')
+                    .select('id')
+                    .neq('id', idFilter)
+                    .eq('status', 'in_review')
+                    .order('created_at', { ascending: true })
+                    .limit(1)
+
+                  const query = new URLSearchParams()
+                  query.set('from', itemId)
+                  query.set('status', 'rejected')
+                  if (!nextError && nextItems && nextItems.length > 0) {
+                    query.set('nextId', nextItems[0].id)
+                  }
+
+                  router.push(`/items/review/success?${query.toString()}`)
+                } catch (rejectError) {
+                  console.error('Reject error:', rejectError)
+                  alert('Failed to reject item')
+                } finally {
+                  setRejecting(false)
+                  setShowRejectConfirm(false)
+                }
+                }}
+                style={{
+                  padding: '12px 24px',
+                  backgroundColor: '#ef4444',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: rejecting ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+                disabled={rejecting}
+              >
+                {rejecting ? 'Processing...' : 'Confirm Reject'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

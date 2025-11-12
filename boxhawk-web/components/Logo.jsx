@@ -15,19 +15,22 @@ export default function Logo({
     xxlarge: { width: 300, height: 300, fontSize: '80px' }
   }
 
-  const config = sizeConfig[size] || sizeConfig.medium
+  const config = size === 'nav'
+    ? { width: 180, height: 48, fontSize: '28px' }
+    : sizeConfig[size] || sizeConfig.medium
 
   const logoContent = (
     <div style={{
       display: 'flex',
       alignItems: 'center',
-      gap: '8px',
+      gap: '12px',
+      height: config.height,
       ...style
     }}>
       {/* Logo Image */}
       <div style={{
         width: config.width,
-        height: config.height,
+        height: '100%',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -35,8 +38,8 @@ export default function Logo({
       }}>
         {/* Actual logo image */}
         <Image
-          src="/images/boxhawk.png"
-          alt="Boxhawk Logo"
+          src="/images/medishelf.png"
+          alt="Medi Shelf Logo"
           width={config.width}
           height={config.height}
           style={{ 
@@ -52,17 +55,26 @@ export default function Logo({
         <span style={{
           fontSize: config.fontSize,
           fontWeight: 'bold',
-          color: '#333'
+          color: '#1f2937',
+          textTransform: 'lowercase',
+          letterSpacing: '0.5px'
         }}>
-          Boxhawk
+          medi shelf
         </span>
       )}
     </div>
   )
 
+  const linkStyle = {
+    textDecoration: 'none',
+    display: 'flex',
+    alignItems: 'center',
+    height: '100%'
+  }
+
   if (href) {
     return (
-      <Link href={href} style={{ textDecoration: 'none' }}>
+      <Link href={href} style={linkStyle}>
         {logoContent}
       </Link>
     )

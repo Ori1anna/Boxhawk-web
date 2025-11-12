@@ -221,7 +221,7 @@ export default function UploadPage() {
           created_by: user.id,
           name: formData.name.trim(),
           manufacturer: formData.manufacturer.trim(),
-          status: 'uploaded',
+          status: 'in_review',
           reviewed: false
         })
         .select('id')
@@ -603,19 +603,22 @@ export default function UploadPage() {
         {/* Instructions */}
         <div style={{
           marginTop: '32px',
-          padding: '20px',
+          padding: '24px',
           backgroundColor: '#ffffff',
-          borderRadius: '8px',
+          borderRadius: '12px',
           fontSize: '14px',
-          color: '#666',
-          lineHeight: '1.5'
+          color: '#4b5563',
+          lineHeight: '1.7',
+          boxShadow: '0 12px 24px rgba(15, 23, 42, 0.04)'
         }}>
-          <h4 style={{ margin: '0 0 12px 0', color: '#333' }}>Tips for better photos:</h4>
-          <ul style={{ margin: 0, paddingLeft: '20px' }}>
-            <li>Take photos from different angles</li>
-            <li>Ensure good lighting</li>
-            <li>Include labels, barcodes, and expiration dates</li>
-            <li>Minimum 4 photos, maximum 10 photos</li>
+          <h4 style={{ margin: '0 0 16px 0', color: '#1f2937', fontSize: '16px' }}>Tips for better photos</h4>
+          <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <li>Capture the front, back, and both sides so we can see the full packaging.</li>
+            <li>Take close-ups of key details: labels, ingredient lists, barcodes, expiration dates, and warnings.</li>
+            <li>Use bright, even lighting and avoid glare or shadows. Retake any blurry shots.</li>
+            <li>Keep the product centered in the frame and clear away cluttered backgrounds.</li>
+            <li>Upload photos for only one product per submission—do not mix different items.</li>
+            <li>Minimum 4 photos, maximum 10 photos. More angles help our experts verify the item quickly.</li>
           </ul>
         </div>
       </div>

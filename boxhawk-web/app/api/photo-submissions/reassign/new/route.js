@@ -32,7 +32,7 @@ export async function POST(request) {
         name: newSubmission.name,
         manufacturer: newSubmission.manufacturer,
         labels: newSubmission?.labels || null,
-        status: 'uploaded',
+        status: 'in_review',
         created_by: sourceRow?.created_by
       })
       .select('id')

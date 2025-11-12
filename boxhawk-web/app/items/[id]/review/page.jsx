@@ -3,12 +3,19 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
+import {
+  GENERAL_SYMBOLS,
+  RECYCLING_SYMBOLS,
+  parseSymbolField,
+  serializeSymbolField
+} from '@/constants/symbolOptions'
 
 export default function ReviewPage() {
   const [reviewData, setReviewData] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [actionType, setActionType] = useState('complete')
   const [showImageModal, setShowImageModal] = useState(false)
   const [modalImageUrl, setModalImageUrl] = useState('')
   const router = useRouter()
@@ -30,25 +37,42 @@ export default function ReviewPage() {
     }
   }, [searchParams])
 
-  const handleSubmit = () => {
+  const handleSubmit = (type) => {
+    setActionType(type)
     setShowConfirm(true)
   }
 
-  const handleConfirm = async (continueToNext = false) => {
+  const handleConfirm = async () => {
     if (!reviewData) return
 
     try {
       setSaving(true)
       setShowConfirm(false)
       
+      const {
+        labels: generalSymbols = [],
+        recycling_symbol: recyclingSymbols = [],
+        ...restFormFields
+      } = reviewData.formData || {}
+
+      const updatePayload = actionType === 'reject'
+        ? {
+            status: 'rejected',
+            reviewed: true,
+            updated_at: new Date().toISOString()
+          }
+        : {
+            ...restFormFields,
+            labels: serializeSymbolField(generalSymbols, GENERAL_SYMBOLS),
+            recycling_symbol: serializeSymbolField(recyclingSymbols, RECYCLING_SYMBOLS),
+            status: 'complete',
+            reviewed: true,
+            updated_at: new Date().toISOString()
+          }
+
       const { error } = await supabase
         .from('photo_submissions')
-        .update({
-          ...reviewData.formData,
-          status: 'complete',
-          reviewed: true,
-          updated_at: new Date().toISOString()
-        })
+        .update(updatePayload)
         .eq('id', reviewData.itemId)
 
       if (error) {
@@ -57,30 +81,23 @@ export default function ReviewPage() {
         return
       }
 
-      if (continueToNext) {
-        // Find next pending item
-        const { data: nextItem, error: nextError } = await supabase
-          .from('photo_submissions')
-          .select('id')
-          .neq('id', reviewData.itemId)
-          .neq('status', 'complete')
-          .order('created_at', { ascending: true })
-          .limit(1)
-          .single()
+      // Find next pending item for potential continuation
+      const { data: nextItems, error: nextError } = await supabase
+        .from('photo_submissions')
+        .select('id')
+        .neq('id', reviewData.itemId)
+        .eq('status', 'in_review')
+        .order('created_at', { ascending: true })
+        .limit(1)
 
-        if (nextError || !nextItem) {
-          // No more items to review
-          alert('All items have been reviewed! Returning to items list.')
-          router.push('/items')
-        } else {
-          // Navigate to next item
-          router.push(`/items/${nextItem.id}`)
-        }
-      } else {
-        // Return to items list
-        alert('Item marked as complete!')
-        router.push('/items')
+      const query = new URLSearchParams()
+      query.set('from', reviewData.itemId)
+      query.set('status', actionType === 'reject' ? 'rejected' : 'complete')
+      if (!nextError && Array.isArray(nextItems) && nextItems.length > 0) {
+        query.set('nextId', nextItems[0].id)
       }
+
+      router.push(`/items/review/success?${query.toString()}`)
       
     } catch (error) {
       console.error('Error:', error)
@@ -158,6 +175,71 @@ export default function ReviewPage() {
 
   const { formData, images } = reviewData
   const firstImage = images && images.length > 0 ? images[0] : null
+  const generalSymbolsSelected = parseSymbolField(formData?.labels, GENERAL_SYMBOLS)
+  const recyclingSymbolsSelected = parseSymbolField(formData?.recycling_symbol, RECYCLING_SYMBOLS)
+
+  const renderSymbolBadges = (selectedIds, options, accentColor) => {
+    if (!selectedIds || selectedIds.length === 0) {
+      return (
+        <span style={{ color: '#6b7280', fontSize: '14px' }}>
+          None selected
+        </span>
+      )
+    }
+
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '12px'
+        }}
+      >
+        {selectedIds.map((id) => {
+          const option = options.find((opt) => opt.id === id)
+          const label = option ? option.label : id
+          const image = option?.image
+          return (
+            <div
+              key={id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: accentColor,
+                borderRadius: '999px',
+                padding: '6px 12px'
+              }}
+            >
+              {image && (
+                <img
+                  src={image}
+                  alt={label}
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    objectFit: 'contain',
+                    borderRadius: '50%',
+                    backgroundColor: '#fff',
+                    padding: '2px'
+                  }}
+                />
+              )}
+              <span
+                style={{
+                  color: '#111827',
+                  fontSize: '12px',
+                  fontWeight: 600
+                }}
+              >
+                {label}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
 
   return (
     <div style={{
@@ -301,7 +383,7 @@ export default function ReviewPage() {
                     color: '#666',
                     marginBottom: '4px'
                   }}>
-                    Name:
+                    Name <span style={{ color: '#dc2626' }}>*</span>:
                   </div>
                   <div style={{
                     fontSize: '16px',
@@ -322,7 +404,7 @@ export default function ReviewPage() {
                     color: '#666',
                     marginBottom: '4px'
                   }}>
-                    Manufacturer:
+                    Manufacturer <span style={{ color: '#dc2626' }}>*</span>:
                   </div>
                   <div style={{
                     fontSize: '16px',
@@ -518,19 +600,9 @@ export default function ReviewPage() {
                     color: '#666',
                     marginBottom: '4px'
                   }}>
-                    Labels:
+                    General Symbols:
                   </div>
-                  <div style={{
-                    fontSize: '16px',
-                    fontWeight: '500',
-                    color: '#e74c3c',
-                    backgroundColor: '#ffeaea',
-                    padding: '8px 12px',
-                    borderRadius: '4px',
-                    wordBreak: 'break-word'
-                  }}>
-                    {formData.labels || ''}
-                  </div>
+                  {renderSymbolBadges(generalSymbolsSelected, GENERAL_SYMBOLS, '#e0e7ff')}
                 </div>
 
                 <div>
@@ -539,19 +611,9 @@ export default function ReviewPage() {
                     color: '#666',
                     marginBottom: '4px'
                   }}>
-                    Recycling Symbol:
+                    Recycling Symbols:
                   </div>
-                  <div style={{
-                    fontSize: '16px',
-                    fontWeight: '500',
-                    color: '#e74c3c',
-                    backgroundColor: '#ffeaea',
-                    padding: '8px 12px',
-                    borderRadius: '4px',
-                    wordBreak: 'break-word'
-                  }}>
-                    {formData.recycling_symbol || ''}
-                  </div>
+                  {renderSymbolBadges(recyclingSymbolsSelected, RECYCLING_SYMBOLS, '#d1fae5')}
                 </div>
 
                 <div>
@@ -647,10 +709,29 @@ export default function ReviewPage() {
         {/* Action Buttons */}
         <div style={{
           display: 'flex',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          gap: '16px',
+          flexWrap: 'wrap'
         }}>
           <button
-            onClick={handleSubmit}
+            onClick={() => handleSubmit('reject')}
+            disabled={saving}
+            style={{
+              padding: '16px 32px',
+              backgroundColor: '#ef4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: saving ? 'not-allowed' : 'pointer',
+              fontSize: '16px',
+              fontWeight: '600',
+              minWidth: '140px'
+            }}
+          >
+            {saving && actionType === 'reject' ? 'Processing...' : 'Reject Item'}
+          </button>
+          <button
+            onClick={() => handleSubmit('complete')}
             disabled={saving}
             style={{
               padding: '16px 32px',
@@ -664,7 +745,7 @@ export default function ReviewPage() {
               minWidth: '140px'
             }}
           >
-            {saving ? 'Processing...' : 'Submit'}
+            {saving && actionType === 'complete' ? 'Processing...' : 'Mark Complete'}
           </button>
         </div>
       </div>
@@ -698,7 +779,7 @@ export default function ReviewPage() {
               marginBottom: '16px',
               color: '#1a1a1a'
             }}>
-              Confirm Review
+              {actionType === 'reject' ? 'Reject Item' : 'Confirm Review'}
             </h3>
             
             <p style={{
@@ -707,25 +788,10 @@ export default function ReviewPage() {
               marginBottom: '24px',
               lineHeight: '1.5'
             }}>
-              Are you sure you have completed the review? Choose your next action:
+              {actionType === 'reject'
+                ? 'Are you sure you want to reject this item? It will be removed from the queue.'
+                : 'Are you sure you have completed the review for this item?'}
             </p>
-            
-            <div style={{
-              fontSize: '14px',
-              color: '#666',
-              marginBottom: '20px',
-              padding: '12px',
-              backgroundColor: '#f8f9fa',
-              borderRadius: '6px',
-              border: '1px solid #e9ecef'
-            }}>
-              <div style={{ marginBottom: '8px' }}>
-                <strong>Complete & Return:</strong> Mark this item as complete and return to the items list
-              </div>
-              <div>
-                <strong>Complete & Continue:</strong> Mark this item as complete and automatically proceed to the next pending item
-              </div>
-            </div>
             
             <div style={{
               display: 'flex',
@@ -749,11 +815,11 @@ export default function ReviewPage() {
               </button>
               
               <button
-                onClick={() => handleConfirm(false)}
+                onClick={handleConfirm}
                 disabled={saving}
                 style={{
                   padding: '12px 24px',
-                  backgroundColor: '#6c5ce7',
+                  backgroundColor: actionType === 'reject' ? '#ef4444' : '#1a1a1a',
                   color: 'white',
                   border: 'none',
                   borderRadius: '6px',
@@ -762,24 +828,11 @@ export default function ReviewPage() {
                   fontWeight: '500'
                 }}
               >
-                {saving ? 'Processing...' : 'Complete & Return'}
-              </button>
-              
-              <button
-                onClick={() => handleConfirm(true)}
-                disabled={saving}
-                style={{
-                  padding: '12px 24px',
-                  backgroundColor: '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: saving ? 'not-allowed' : 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500'
-                }}
-              >
-                {saving ? 'Processing...' : 'Complete & Continue'}
+                {saving
+                  ? 'Processing...'
+                  : actionType === 'reject'
+                    ? 'Confirm Reject'
+                    : 'Confirm Complete'}
               </button>
             </div>
           </div>

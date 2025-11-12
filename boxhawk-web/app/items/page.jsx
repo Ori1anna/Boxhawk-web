@@ -5,21 +5,24 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { ExpertGuard } from '@/components/RoleGuard'
 import Link from 'next/link'
+import ItemCard from '@/components/ItemCard'
+import { fetchItemsWithImages } from '@/lib/itemsService'
 
 export default function ItemsPage() {
-  const [items, setItems] = useState([])
   const [pendingItems, setPendingItems] = useState([])
   const [completedItems, setCompletedItems] = useState([])
+  const [rejectedItems, setRejectedItems] = useState([])
+  const [pendingCount, setPendingCount] = useState(0)
+  const [completedCount, setCompletedCount] = useState(0)
+  const [rejectedCount, setRejectedCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
   const [user, setUser] = useState(null)
   const [userRole, setUserRole] = useState(null)
   const router = useRouter()
 
-  const itemsPerPage = 12
+  const sectionLimit = 6
 
   useEffect(() => {
     // Check user authentication (no role restrictions for now)
@@ -41,68 +44,43 @@ export default function ItemsPage() {
     if (user) {
       fetchItems()
     }
-  }, [user, currentPage])
+  }, [user])
 
-  const fetchItems = async () => {
+  const fetchItems = async (term = searchTerm) => {
     try {
       setLoading(true)
       setError(null)
+      const [pendingRes, completedRes, rejectedRes] = await Promise.all([
+        fetchItemsWithImages({
+          excludeStatuses: ['complete', 'rejected'],
+          limit: sectionLimit,
+          searchTerm: term
+        }),
+        fetchItemsWithImages({
+          includeStatuses: ['complete'],
+          limit: sectionLimit,
+          searchTerm: term
+        }),
+        fetchItemsWithImages({
+          includeStatuses: ['rejected'],
+          limit: sectionLimit,
+          searchTerm: term
+        })
+      ])
 
-      // Calculate offset for pagination
-      const offset = (currentPage - 1) * itemsPerPage
-
-      // Build query - show all items with image count from new table
-      let query = supabase
-        .from('photo_submissions')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-
-      // Add search filter if search term exists
-      if (searchTerm.trim()) {
-        query = query.or(`name.ilike.%${searchTerm}%,manufacturer.ilike.%${searchTerm}%`)
-      }
-
-      // Add pagination
-      query = query.range(offset, offset + itemsPerPage - 1)
-
-      const { data, error, count } = await query
-
-      if (error) {
-        console.error('Error fetching items:', error)
+      if (pendingRes.error || completedRes.error || rejectedRes.error) {
+        const err = pendingRes.error || completedRes.error || rejectedRes.error
+        console.error('Error fetching items:', err)
         setError('Failed to load items')
         return
       }
 
-      // For each item, get images from photo_submission_images table
-      const itemsWithImages = await Promise.all((data || []).map(async (item) => {
-        // Get images from photo_submission_images table
-        const { data: images } = await supabase
-          .from('photo_submission_images')
-          .select('storage_path')
-          .eq('submission_id', item.id)
-          .eq('status', 'active')
-          .order('created_at', { ascending: true })
-
-        // Convert storage paths to public URLs
-        const imageUrls = (images || []).map(img => 
-          supabase.storage.from('mp-images').getPublicUrl(img.storage_path).data.publicUrl
-        )
-
-        return {
-          ...item,
-          images: imageUrls
-        }
-      }))
-
-      // Separate items into pending and completed
-      const pending = itemsWithImages.filter(item => item.status !== 'complete')
-      const completed = itemsWithImages.filter(item => item.status === 'complete')
-      
-      setItems(itemsWithImages)
-      setPendingItems(pending)
-      setCompletedItems(completed)
-      setTotalPages(Math.ceil((count || 0) / itemsPerPage))
-
+      setPendingItems(pendingRes.items)
+      setCompletedItems(completedRes.items)
+      setRejectedItems(rejectedRes.items)
+      setPendingCount(pendingRes.count)
+      setCompletedCount(completedRes.count)
+      setRejectedCount(rejectedRes.count)
     } catch (error) {
       console.error('Error:', error)
       setError('An error occurred while loading items')
@@ -111,14 +89,9 @@ export default function ItemsPage() {
     }
   }
 
-  const handlePageChange = (newPage) => {
-    setCurrentPage(newPage)
-  }
-
   const handleSearch = (e) => {
     e.preventDefault()
-    setCurrentPage(1)
-    fetchItems()
+    fetchItems(searchTerm)
   }
 
   const handleSearchChange = (e) => {
@@ -164,9 +137,7 @@ export default function ItemsPage() {
       <div style={{
         maxWidth: '1200px',
         margin: '0 auto',
-        padding: '20px',
-        backgroundColor: '#ffffff',
-        minHeight: '100vh'
+        padding: '0 24px 40px 24px'
       }}>
       {/* Header */}
       <div style={{
@@ -184,14 +155,14 @@ export default function ItemsPage() {
             color: '#1a1a1a',
             marginBottom: '8px'
           }}>
-            Review Items
+            Review Queue
           </h1>
           <p style={{
             fontSize: '16px',
             color: '#666',
             margin: 0
           }}>
-            {items.length} items total
+            {pendingCount + completedCount + rejectedCount} items total
           </p>
         </div>
 
@@ -235,18 +206,37 @@ export default function ItemsPage() {
 
       {/* Pending Items Section */}
       <div style={{ marginBottom: '40px' }}>
-        <h2 style={{
-          fontSize: '24px',
-          fontWeight: '600',
-          marginBottom: '20px',
-          color: '#1a1a1a',
+        <div style={{
           display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '8px'
+          marginBottom: '20px',
+          gap: '12px'
         }}>
-          <span style={{ fontSize: '20px' }}>⏳</span>
-          Awaiting Review ({pendingItems.length})
-        </h2>
+          <h2 style={{
+            fontSize: '24px',
+            fontWeight: '600',
+            color: '#1a1a1a',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            margin: 0
+          }}>
+            <span style={{ fontSize: '20px' }}>⏳</span>
+            Awaiting Review ({pendingCount})
+          </h2>
+          <Link
+            href="/items/pending"
+            style={{
+              fontSize: '14px',
+              color: '#6c5ce7',
+              textDecoration: 'none',
+              fontWeight: '600'
+            }}
+          >
+            View all →
+          </Link>
+        </div>
         
         {pendingItems.length === 0 ? (
           <div style={{
@@ -268,102 +258,7 @@ export default function ItemsPage() {
             marginBottom: '20px'
           }}>
             {pendingItems.map((item) => (
-              <Link
-                key={item.id}
-                href={`/items/${item.id}`}
-                style={{ textDecoration: 'none' }}
-              >
-                <div style={{
-                  backgroundColor: '#ffffff',
-                  borderRadius: '12px',
-                  padding: '20px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  border: '1px solid #e9ecef'
-                }}>
-                  {/* Thumbnail */}
-                  <div style={{
-                    width: '100%',
-                    height: '200px',
-                    backgroundColor: '#f8f9fa',
-                    borderRadius: '8px',
-                    marginBottom: '16px',
-                    overflow: 'hidden',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    {item.images && item.images.length > 0 ? (
-                      <img
-                        src={item.images[0]}
-                        alt={item.name}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover'
-                        }}
-                      />
-                    ) : (
-                      <div style={{ fontSize: '48px', color: '#ccc' }}>📷</div>
-                    )}
-                  </div>
-
-                  {/* Content */}
-                  <div>
-                    <h3 style={{
-                      fontSize: '18px',
-                      fontWeight: '600',
-                      marginBottom: '8px',
-                      color: '#1a1a1a',
-                      lineHeight: '1.3'
-                    }}>
-                      {item.name}
-                    </h3>
-                    
-                    <p style={{
-                      fontSize: '14px',
-                      color: '#666',
-                      marginBottom: '12px'
-                    }}>
-                      {item.manufacturer}
-                    </p>
-
-                    {/* Status Badge */}
-                    <div style={{
-                      display: 'inline-block',
-                      padding: '4px 12px',
-                      borderRadius: '20px',
-                      fontSize: '12px',
-                      fontWeight: '500',
-                      marginBottom: '12px',
-                      backgroundColor: 
-                        item.status === 'uploaded' ? '#fff3cd' :
-                        item.status === 'in_review' ? '#d1ecf1' : '#f8d7da',
-                      color: 
-                        item.status === 'uploaded' ? '#856404' :
-                        item.status === 'in_review' ? '#0c5460' : '#721c24'
-                    }}>
-                      {item.status === 'uploaded' ? 'Uploaded' :
-                       item.status === 'in_review' ? 'In Review' : item.status}
-                    </div>
-
-                    {/* Meta Info */}
-                    <div style={{
-                      fontSize: '12px',
-                      color: '#999',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}>
-                      <span>{new Date(item.created_at).toLocaleDateString()}</span>
-                      <span>
-                        {item.images ? item.images.length : 0} photos
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Link>
+              <ItemCard key={item.id} item={item} variant="pending" />
             ))}
           </div>
         )}
@@ -371,18 +266,37 @@ export default function ItemsPage() {
 
       {/* Completed Items Section */}
       <div>
-        <h2 style={{
-          fontSize: '24px',
-          fontWeight: '600',
-          marginBottom: '20px',
-          color: '#1a1a1a',
+        <div style={{
           display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '8px'
+          marginBottom: '20px',
+          gap: '12px'
         }}>
-          <span style={{ fontSize: '20px' }}>✅</span>
-          Completed ({completedItems.length})
-        </h2>
+          <h2 style={{
+            fontSize: '24px',
+            fontWeight: '600',
+            color: '#1a1a1a',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            margin: 0
+          }}>
+            <span style={{ fontSize: '20px' }}>✅</span>
+            Completed ({completedCount})
+          </h2>
+          <Link
+            href="/items/completed"
+            style={{
+              fontSize: '14px',
+              color: '#6c5ce7',
+              textDecoration: 'none',
+              fontWeight: '600'
+            }}
+          >
+            View all →
+          </Link>
+        </div>
         
         {completedItems.length === 0 ? (
           <div style={{
@@ -403,154 +317,70 @@ export default function ItemsPage() {
             gap: '24px'
           }}>
             {completedItems.map((item) => (
-              <Link
-                key={item.id}
-                href={`/items/${item.id}`}
-                style={{ textDecoration: 'none' }}
-              >
-                <div style={{
-                  backgroundColor: '#ffffff',
-                  borderRadius: '12px',
-                  padding: '20px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  border: '1px solid #e9ecef'
-                }}>
-                  {/* Thumbnail */}
-                  <div style={{
-                    width: '100%',
-                    height: '200px',
-                    backgroundColor: '#f8f9fa',
-                    borderRadius: '8px',
-                    marginBottom: '16px',
-                    overflow: 'hidden',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    {item.images && item.images.length > 0 ? (
-                      <img
-                        src={item.images[0]}
-                        alt={item.name}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover'
-                        }}
-                      />
-                    ) : (
-                      <div style={{ fontSize: '48px', color: '#ccc' }}>📷</div>
-                    )}
-                  </div>
-
-                  {/* Content */}
-                  <div>
-                    <h3 style={{
-                      fontSize: '18px',
-                      fontWeight: '600',
-                      marginBottom: '8px',
-                      color: '#1a1a1a',
-                      lineHeight: '1.3'
-                    }}>
-                      {item.name}
-                    </h3>
-                    
-                    <p style={{
-                      fontSize: '14px',
-                      color: '#666',
-                      marginBottom: '12px'
-                    }}>
-                      {item.manufacturer}
-                    </p>
-
-                    {/* Status Badge */}
-                    <div style={{
-                      display: 'inline-block',
-                      padding: '4px 12px',
-                      borderRadius: '20px',
-                      fontSize: '12px',
-                      fontWeight: '500',
-                      marginBottom: '12px',
-                      backgroundColor: '#d4edda',
-                      color: '#155724'
-                    }}>
-                      Complete
-                    </div>
-
-                    {/* Meta Info */}
-                    <div style={{
-                      fontSize: '12px',
-                      color: '#999',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}>
-                      <span>{new Date(item.created_at).toLocaleDateString()}</span>
-                      <span>
-                        {item.images ? item.images.length : 0} photos
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Link>
+              <ItemCard key={item.id} item={item} variant="completed" />
             ))}
           </div>
         )}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
+      {/* Rejected Items Section */}
+      <div style={{ marginTop: '40px' }}>
         <div style={{
           display: 'flex',
-          justifyContent: 'center',
+          justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '8px',
-          marginTop: '40px'
+          marginBottom: '20px',
+          gap: '12px'
         }}>
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: currentPage === 1 ? '#f8f9fa' : '#6c5ce7',
-              color: currentPage === 1 ? '#999' : 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-              fontSize: '14px'
-            }}
-          >
-            Previous
-          </button>
-          
-          <span style={{
-            padding: '8px 16px',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '6px',
-            fontSize: '14px',
-            color: '#666'
+          <h2 style={{
+            fontSize: '24px',
+            fontWeight: '600',
+            color: '#1a1a1a',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            margin: 0
           }}>
-            Page {currentPage} of {totalPages}
-          </span>
-          
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
+            <span style={{ fontSize: '20px' }}>❌</span>
+            Rejected ({rejectedCount})
+          </h2>
+          <Link
+            href="/items/rejected"
             style={{
-              padding: '8px 16px',
-              backgroundColor: currentPage === totalPages ? '#f8f9fa' : '#6c5ce7',
-              color: currentPage === totalPages ? '#999' : 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-              fontSize: '14px'
+              fontSize: '14px',
+              color: '#6c5ce7',
+              textDecoration: 'none',
+              fontWeight: '600'
             }}
           >
-            Next
-          </button>
+            View all →
+          </Link>
         </div>
-      )}
+        
+        {rejectedItems.length === 0 ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '40px 20px',
+            color: '#666',
+            backgroundColor: '#fef2f2',
+            borderRadius: '8px',
+            border: '1px solid #fee2e2'
+          }}>
+            <div style={{ fontSize: '32px', marginBottom: '12px' }}>🗑️</div>
+            <p>No rejected items.</p>
+          </div>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+            gap: '24px'
+          }}>
+            {rejectedItems.map((item) => (
+              <ItemCard key={item.id} item={item} variant="rejected" />
+            ))}
+          </div>
+        )}
+      </div>
       </div>
     </ExpertGuard>
   )
