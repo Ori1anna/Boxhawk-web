@@ -45,7 +45,7 @@ export default function ItemDetailPage() {
       setLoading(true)
       setError(null)
 
-      // 直接从 photo_submissions 读取基本信息
+      // Read basic information directly from photo_submissions
       const { data, error } = await supabase
         .from('photo_submissions')
         .select('*')
@@ -60,7 +60,7 @@ export default function ItemDetailPage() {
 
       setItem(data)
 
-      // 加载该 submission 的图片明细（含 id），用于多选与批量操作
+      // Load image details (including id) for this submission, for multi-select and batch operations
       const { data: imgs, error: imgsErr } = await supabase
         .from('photo_submission_images')
         .select('id, storage_path, status, created_at')
@@ -181,7 +181,7 @@ export default function ItemDetailPage() {
 
   const getImageList = () => {
     if (!item) return []
-    // 只使用明细表的图片 URL 列表
+    // Use only the image URL list from the detail table
     return imagesFromDetail
   }
 
@@ -197,17 +197,17 @@ export default function ItemDetailPage() {
         if (upErr) throw upErr
         uploaded.push({ path, size: file.size, mime: file.type })
       }
-      // 登记到明细表
+      // Register to detail table
       await fetch(`/api/photo-submissions/${itemId}/images/upload`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ files: uploaded })
       })
-      // 刷新
+      // Refresh
       await fetchItem()
     } catch (e) {
       console.error(e)
-      alert('上传失败，请重试')
+      alert('Upload failed, please try again')
     } finally {
       setUploading(false)
     }

@@ -9,7 +9,7 @@ export default function TestLogoPage() {
       minHeight: '100vh'
     }}>
       <h1 style={{ marginBottom: '40px', textAlign: 'center' }}>
-        Logo 测试页面
+        Logo Test Page
       </h1>
       
       <div style={{
@@ -99,7 +99,7 @@ export default function TestLogoPage() {
         textAlign: 'center',
         color: '#666'
       }}>
-        <p>访问 <a href="/" style={{ color: '#6c5ce7' }}>首页</a> 和 <a href="/landing" style={{ color: '#6c5ce7' }}>Landing 页面</a> 查看实际使用效果</p>
+        <p>Visit <a href="/" style={{ color: '#6c5ce7' }}>Home</a> and <a href="/landing" style={{ color: '#6c5ce7' }}>Landing Page</a> to see actual usage</p>
       </div>
     </div>
   )
