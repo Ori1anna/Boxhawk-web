@@ -9,7 +9,6 @@
 6. [Supabase Integration](#supabase-integration)
 7. [User Roles & Permissions](#user-roles--permissions)
 8. [Core Features](#core-features)
-   - [Symbol Selection System](#symbol-selection-system)
 9. [API Routes](#api-routes)
 10. [Database Schema](#database-schema)
 11. [Component Reference](#component-reference)
@@ -346,40 +345,6 @@ After login, users are redirected based on role:
 
 ## Core Features
 
-### Symbol Selection System
-
-The application uses an image-based symbol selection system for medical device symbols and recycling codes.
-
-**Location**: `constants/symbolOptions.js`
-
-**Symbol Types**:
-1. **General Symbols** (`GENERAL_SYMBOLS`): Medical device symbols (CE marking, Sterile, Single Use, etc.)
-2. **Recycling Symbols** (`RECYCLING_SYMBOLS`): Recycling codes (PET, HDPE, PVC, etc.)
-
-**Storage Format**: Symbols are stored as comma-separated strings in database text fields:
-- `labels` field: General symbols (e.g., "CE, No LATEX, STERILE EO, Single Use")
-- `recycling_symbol` field: Recycling symbols (e.g., "01 PET, 02 HDPE")
-
-**Utility Functions**:
-
-```javascript
-// Parse database value to symbol IDs array
-parseSymbolField(value, options)
-// Example: "CE, No LATEX" → ["ce", "no_latex"]
-
-// Serialize symbol IDs array to database format
-serializeSymbolField(ids, options)
-// Example: ["ce", "no_latex"] → "CE, No LATEX"
-```
-
-**Usage in Forms**:
-- Users select symbols by clicking image cards
-- Selected symbols are stored as arrays of IDs in component state
-- On save, symbols are serialized to comma-separated strings before database update
-- On load, database strings are parsed back to arrays for display
-
-**Symbol Images**: Located in `public/images/general symbols/` and `public/images/recycling symbols/`
-
 ### 1. Photo Upload (Photouser)
 
 **Page**: `/photo/upload`
@@ -435,13 +400,18 @@ serializeSymbolField(ids, options)
   - Dates (Manufacture, Expiration)
   - LOT/REF numbers
   - Size, Quantity
-  - General Symbols (image-based selection) - See [Symbol Selection System](#symbol-selection-system)
-  - Recycling Symbols (image-based selection) - See [Symbol Selection System](#symbol-selection-system)
+  - **General Symbols** (image-based multi-select): Medical device symbols (CE marking, Sterile, Single Use, etc.) - stored as comma-separated string in `labels` field
+  - **Recycling Symbols** (image-based multi-select): Recycling codes (PET, HDPE, PVC, etc.) - stored as comma-separated string in `recycling_symbol` field
   - Manufacture Address, Site, Sponsor
   - Notes
 - Mark as Complete or Reject
 - Back to Review Queue button
 - Image modal for full-size viewing
+
+**Symbol Selection**:
+- Users select symbols by clicking image cards (defined in `constants/symbolOptions.js`)
+- Selected symbols stored as arrays in component state, serialized to comma-separated strings before saving
+- Symbol images located in `public/images/general symbols/` and `public/images/recycling symbols/`
 
 **Status Flow**:
 - Items start with `status = 'uploaded'` or `status = 'in_review'`
@@ -451,7 +421,7 @@ serializeSymbolField(ids, options)
 
 **Data Persistence**:
 - Form data is saved to `photo_submissions` table
-- Symbols are serialized before saving (see [Symbol Selection System](#symbol-selection-system))
+- Symbols are serialized to comma-separated strings before database update
 - `updated_at` timestamp is automatically updated
 
 ### 4. Review Confirmation
@@ -1190,6 +1160,64 @@ curl -X POST http://localhost:3000/api/admin/users/create \
 
 ---
 
+## Creating Superadmin Users
+
+**Note**: Superadmin creation functionality is **partially implemented** in the UI but requires an existing superadmin user to access.
+
+### Current Implementation Status
+
+- ✅ **UI Level**: The admin user management page (`/admin/users`) shows "Super Admin" option only when logged in as a superadmin
+- ✅ **Permission Check**: The system defines that only superadmin can create other superadmins (see `lib/rbac.js`)
+- ⚠️ **API Level**: API routes do not currently validate permissions (security consideration)
+
+### Creating the First Superadmin
+
+Since the UI only allows superadmin users to create other superadmins, you need to create the first superadmin manually:
+
+#### Method 1: Via Supabase Dashboard (Recommended)
+
+1. Go to Supabase Dashboard → Authentication → Users
+2. Find the admin user you want to promote
+3. Click on the user to open details
+4. Scroll to `app_metadata` section
+5. Edit the JSON:
+   ```json
+   {
+     "role": "superadmin"
+   }
+   ```
+6. Save changes
+
+#### Method 2: Using Script (Modify create-admin-user.js)
+
+1. Edit `scripts/create-admin-user.js`
+2. Change the role assignment from `'admin'` to `'superadmin'`:
+   ```javascript
+   app_metadata: { role: 'superadmin' }
+   ```
+3. Run the script:
+   ```bash
+   node scripts/create-admin-user.js
+   ```
+
+#### Method 3: Direct Database Update (Advanced)
+
+If you have direct database access, you can update the user's metadata directly.
+
+### Creating Additional Superadmins
+
+Once you have at least one superadmin user:
+
+1. Log in as superadmin
+2. Go to `/admin/users`
+3. Click "Add User" or "Invite User"
+4. You will now see "Super Admin" option in the role dropdown
+5. Select "Super Admin" and create the user
+
+**Important**: Only superadmin users can see and select the "Super Admin" role option in the UI.
+
+---
+
 ## Development Best Practices
 
 ### Code Organization
@@ -1328,7 +1356,7 @@ npm install package@latest
 
 ---
 
-*Last Updated: December 2024*
+*Last Updated: 24/11/2025*
 *Project Version: 0.1.0*
 *Next.js Version: 15.5.4*
 *React Version: 19.1.0*
