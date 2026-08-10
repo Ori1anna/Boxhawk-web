@@ -1,9 +1,9 @@
 'use client'
 
-import { useMemo } from 'react'
+import { Suspense, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function ReviewSuccessPage() {
+function ReviewSuccessContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -142,6 +142,14 @@ export default function ReviewSuccessPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ReviewSuccessPage() {
+  return (
+    <Suspense fallback={null}>
+      <ReviewSuccessContent />
+    </Suspense>
   )
 }
 
