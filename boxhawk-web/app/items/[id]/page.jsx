@@ -1,16 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, useParams, useSearchParams } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabaseClient'
-import {
-  GENERAL_SYMBOLS,
-  RECYCLING_SYMBOLS,
-  parseSymbolField
-} from '@/constants/symbolOptions'
-
-
 
 export default function ItemDetailPage() {
   const [item, setItem] = useState(null)
@@ -30,7 +23,6 @@ export default function ItemDetailPage() {
   const [modalImageUrl, setModalImageUrl] = useState('')
   const router = useRouter()
   const params = useParams()
-  const searchParams = useSearchParams()
 
   const itemId = params.id
 
@@ -78,8 +70,6 @@ export default function ItemDetailPage() {
         setImagesFromDetail(recs.map(r => r.url))
       }
       
-      // Check if there's form data from review page return
-      const returnData = searchParams.get('returnData')
       let initialFormData = {
         name: data.name || '',
         manufacturer: data.manufacturer || '',
@@ -90,22 +80,24 @@ export default function ItemDetailPage() {
         lot: data.lot || '',
         ref: data.ref || '',
         quantity: data.quantity || '',
-        labels: parseSymbolField(data.labels, GENERAL_SYMBOLS),
-        recycling_symbol: parseSymbolField(data.recycling_symbol, RECYCLING_SYMBOLS),
+        labels: '',
+        recycling_symbol: '',
         manufacture_address: data.manufacture_address || '',
         manufacture_site: data.manufacture_site || '',
         sponsor: data.sponsor || '',
         notes: data.notes || ''
       }
 
-      // If there's return data from review page, use it
-      if (returnData) {
-        try {
-          const parsedData = JSON.parse(decodeURIComponent(returnData))
+      // If returning from review page, restore edited form data
+      try {
+        const returnData = sessionStorage.getItem('returnData')
+        if (returnData) {
+          const parsedData = JSON.parse(returnData)
           initialFormData = { ...initialFormData, ...parsedData.formData }
-        } catch (e) {
-          console.error('Failed to parse return data:', e)
+          sessionStorage.removeItem('returnData')
         }
+      } catch (e) {
+        console.error('Failed to parse return data:', e)
       }
 
       setFormData(initialFormData)
@@ -144,29 +136,14 @@ export default function ItemDetailPage() {
     }))
   }
 
-  const toggleSymbolSelection = (field, value) => {
-    setFormData((prev) => {
-      const current = Array.isArray(prev[field]) ? prev[field] : []
-      const exists = current.includes(value)
-      const updated = exists ? current.filter((item) => item !== value) : [...current, value]
-      return {
-        ...prev,
-        [field]: updated
-      }
-    })
-  }
-
-  const toggleGeneralSymbol = (value) => toggleSymbolSelection('labels', value)
-  const toggleRecyclingSymbol = (value) => toggleSymbolSelection('recycling_symbol', value)
-
   const handleReview = () => {
-    // Navigate to review page with form data
-    const reviewData = encodeURIComponent(JSON.stringify({
+    const reviewData = {
       itemId: itemId,
       formData: formData,
       images: getImageList()
-    }))
-    router.push(`/items/${itemId}/review?data=${reviewData}`)
+    }
+    sessionStorage.setItem('reviewData', JSON.stringify(reviewData))
+    router.push(`/items/${itemId}/review`)
   }
 
   const handleImageClick = (imageUrl) => {
@@ -951,183 +928,6 @@ export default function ItemDetailPage() {
                     outline: 'none'
                   }}
                 />
-              </div>
-
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  marginBottom: '6px',
-                  color: '#111827'
-                }}>
-                  General Symbols
-                </label>
-                <p style={{
-                  fontSize: '12px',
-                  color: '#6b7280',
-                  marginBottom: '12px'
-                }}>
-                  Select every symbol you can identify on the packaging.
-                </p>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-                  gap: '12px'
-                }}>
-                  {GENERAL_SYMBOLS.map((symbol) => {
-                    const selected = (formData.labels || []).includes(symbol.id)
-                    return (
-                      <button
-                        key={symbol.id}
-                        type="button"
-                        onClick={() => toggleGeneralSymbol(symbol.id)}
-                        style={{
-                          border: selected ? '2px solid #1d4ed8' : '1px solid #e5e7eb',
-                          backgroundColor: selected ? '#eef2ff' : '#ffffff',
-                          borderRadius: '12px',
-                          padding: '20px 16px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '12px',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                          boxShadow: selected ? '0 8px 20px rgba(29, 78, 216, 0.15)' : 'none',
-                          minHeight: '190px'
-                        }}
-                      >
-                        {symbol.image ? (
-                          <img
-                            src={symbol.image}
-                            alt={symbol.label}
-                            style={{
-                              width: '88px',
-                              height: '88px',
-                              objectFit: 'contain'
-                            }}
-                          />
-                        ) : (
-                          <div style={{
-                            width: '60px',
-                            height: '60px',
-                            borderRadius: '14px',
-                            backgroundColor: '#f3f4f6',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '26px',
-                            fontWeight: 600,
-                            color: '#1f2937'
-                          }}>
-                            {symbol.label.slice(0, 2)}
-                          </div>
-                        )}
-                        <span
-                          style={{
-                            fontSize: '12px',
-                            fontWeight: 500,
-                            color: '#1f2937',
-                            textAlign: 'center',
-                            lineHeight: 1.4
-                          }}
-                        >
-                          {symbol.label}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <label style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  marginTop: '12px',
-                  marginBottom: '6px',
-                  color: '#111827'
-                }}>
-                  Recycling Symbols
-                </label>
-                <p style={{
-                  fontSize: '12px',
-                  color: '#6b7280',
-                  marginBottom: '12px'
-                }}>
-                  Choose the recycling codes printed on the packaging.
-                </p>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-                  gap: '12px'
-                }}>
-                  {RECYCLING_SYMBOLS.map((symbol) => {
-                    const selected = (formData.recycling_symbol || []).includes(symbol.id)
-                    return (
-                      <button
-                        key={symbol.id}
-                        type="button"
-                        onClick={() => toggleRecyclingSymbol(symbol.id)}
-                        style={{
-                          border: selected ? '2px solid #047857' : '1px solid #e5e7eb',
-                          backgroundColor: selected ? '#ecfdf5' : '#ffffff',
-                          borderRadius: '12px',
-                          padding: '20px 16px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '12px',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                          boxShadow: selected ? '0 8px 20px rgba(4, 120, 87, 0.12)' : 'none',
-                          minHeight: '190px'
-                        }}
-                      >
-                        {symbol.image ? (
-                          <img
-                            src={symbol.image}
-                            alt={symbol.label}
-                            style={{
-                              width: '88px',
-                              height: '88px',
-                              objectFit: 'contain'
-                            }}
-                          />
-                        ) : (
-                          <div style={{
-                            width: '60px',
-                            height: '60px',
-                            borderRadius: '14px',
-                            backgroundColor: '#f3f4f6',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '26px',
-                            fontWeight: 600,
-                            color: '#1f2937'
-                          }}>
-                            {symbol.label.slice(0, 2)}
-                          </div>
-                        )}
-                        <span
-                          style={{
-                            fontSize: '12px',
-                            fontWeight: 500,
-                            color: '#1f2937',
-                            textAlign: 'center',
-                            lineHeight: 1.4
-                          }}
-                        >
-                          {symbol.label}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
               </div>
 
               <div>
